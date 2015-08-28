@@ -14,18 +14,44 @@ var Game = function(){
     .attr('height', '100%')
     .attr('fill', 'black');
   this.asteroids = this.displayCanvas.append("g");
+  this.player = this.displayCanvas.append("circle")
+    .attr('fill', 'yellow')
+    .attr('class', 'player');
   this.runGame();
 }
 
 Game.prototype.runGame = function() {
   var counter = 0;
+  this.createPlayer();
   this.createEnemies();
   setInterval(function() {
     this.updateBoard();
     this.renderBoard();
-    console.log('This is iteration ' + counter + ' of the game');
-    counter++;
   }.bind(this), 1000);
+}
+
+Game.prototype.createPlayer = function() {
+  var initX = 500;
+  var initY = 500;
+  var r = 18;
+  this.player.attr('cx', initX)
+    .attr('cy', initY)
+    .attr('r', r);
+  this.boardState.playerState = {
+    'x': initX,
+    'y': initY,
+    'r': r
+  };
+
+  var drag = d3.behavior.drag()
+    .on('dragstart', function() {
+      d3.select(this).attr('fill', 'red');})
+    .on('drag', function() { 
+      d3.select(this).attr('cx', d3.event.x)
+      .attr('cy', d3.event.y); })
+    .on('dragend', function() { d3.select(this).attr('fill', 'yellow'); });
+
+  this.player.call(drag);
 }
 
 Game.prototype.updateBoard = function() {
