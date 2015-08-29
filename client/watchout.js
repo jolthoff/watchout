@@ -1,56 +1,50 @@
-// start slingin' some d3 here.
-var Game = function(){
-  this.boardState = {
-    'playerState': {},
-    'enemyStates': []
-  };
-  this.shurikensCount = 30;
-  this.displayCanvas = d3.select("body").append("svg")
+var shurikensCount = 15;
+var canvas = d3.select("body").append("svg")
     .attr('width', 1000)
     .attr('height', 1000);
-  this.gameBoard = this.displayCanvas.append("rect")
-    .attr('class', 'gameboard')
+var background = canvas.append("rect")
+    .attr('class', 'canvas')
     .attr('width', '100%')
     .attr('height', '100%')
     .attr('fill', 'transparent');
-  this.shurikens = this.displayCanvas.append("g");
-  this.player = this.displayCanvas.append("circle")
+var shurikens = canvas.append("g");
+var player = canvas.append("circle")
     .attr('fill', 'yellow')
     .attr('class', 'player');
-  this.collisionCount = 0;
-  this.curScore = 0;
-  this.highScore = 0;
-  this.runGame();
-}
+var collisionCount = 0;
+var curScore = 0;
+var highScore = 0;
+var collidedThisTick = false;
 
-Game.prototype.runGame = function() {
-  var counter = 0;
-  this.createPlayer();
-  this.createEnemies();
+var runGame = function() {
+  createPlayer();
   setInterval(function() {
-    this.updateBoard();
-    this.renderBoard();
+    updateBoard(createShurikens());
+    updateScore();
+    collidedThisTick = false;
   }.bind(this), 1000);
-
-  setInterval(function() {
-    this.score();
-    this.collisionDetection();
-  }.bind(this), 500);
 }
 
-Game.prototype.createPlayer = function() {
+var createShurikens = function() {
+  var result = [];
+  for (var i = 0; i < shurikensCount; i++) {
+    var x = Math.random() * canvas.attr('width');
+    var y = Math.random() * canvas.attr('height');
+    var n = 50;
+    var clampedCoordinates = clampPosition(x,y);
+    result.push({'id': i, 'x': clampedCoordinates[0], 'y': clampedCoordinates[1], 'n': n});
+  }
+  return result;
+}
+
+var createPlayer = function() {
   var initX = 500;
   var initY = 500;
   var r = 18;
-  this.player.attr('cx', initX)
+  player.attr('cx', initX)
     .attr('cy', initY)
     .attr('r', r);
-  this.boardState.playerState = {
-    'x': initX,
-    'y': initY,
-    'r': r
-  };
-
+  
   var drag = d3.behavior.drag()
     .on('dragstart', function() {
       d3.select(this).attr('fill', 'red');})
@@ -59,25 +53,14 @@ Game.prototype.createPlayer = function() {
       .attr('cy', d3.event.y); })
     .on('dragend', function() { d3.select(this).attr('fill', 'yellow'); });
 
-  this.player.call(drag);
+  player.call(drag);
 }
 
-Game.prototype.updateBoard = function() {
-  for(var i = 0; i < this.boardState.enemyStates.length; i++) {
-    var curEnemy = this.boardState.enemyStates[i];
-    curEnemy.x += Math.random() * 1000 - 500;
-    curEnemy.y += Math.random() * 1000 - 500;
-    var clampedPosition = this.clampPosition(curEnemy.x, curEnemy.y);
-    curEnemy.x = clampedPosition[0];
-    curEnemy.y = clampedPosition[1];
-  }
-}
-
-Game.prototype.clampPosition = function(x,y) {
+var clampPosition = function(x,y) {
   var leftBound = 0;
-  var rightBound = this.displayCanvas.attr('width')-50;
+  var rightBound = canvas.attr('width')-50;
   var upperBound = 0;
-  var lowerBound = this.displayCanvas.attr('height')-50;
+  var lowerBound = canvas.attr('height')-50;
 
   x = Math.max(x, 0);
   x = Math.min(x, rightBound);
@@ -86,95 +69,79 @@ Game.prototype.clampPosition = function(x,y) {
   return[x,y];
 }
 
-Game.prototype.renderBoard = function() {
-  var joinedshurikens = this.shurikens.selectAll('.shuriken')
-    .data(this.boardState.enemyStates, function(d, index) {return d.id;}); 
+var updateBoard = function(enemyData) {
+  var joinedShurikens = canvas.select('g').selectAll('.shuriken')
+    .data(enemyData, function(d, index) {return d.id;}); 
   
-  joinedshurikens.enter()
+  joinedShurikens.enter()
     .append("rect")
     .attr('class', 'shuriken')
+    .attr('fill', 'black')
     .attr('x', function(d, i) {return d.x})
     .attr('y', function(d, i) {return d.y})
     .attr('height', function(d, i) {return d.n})
     .attr('width', function(d, i) {return d.n})
-    .attr('id', function(d,i) {return d.id})
-    .append('animate')
-    .attr('attributeName', 'transform')
-    .attr('type', 'rotate')
-    .attr('from', '0deg')
-    .attr('to', '360deg.')
-    .attr('dur', '1s')
-    .attr('repeatCount', 'indefinite');
+    .attr('id', function(d,i) {return d.id});
 
-  joinedshurikens.transition()
-    .delay(1000)
-    .attr('x', function(d, i) {return d.x})
-    .attr('y', function(d, i) {return d.y});
+  joinedShurikens.transition()
+    .duration(1000)
+    .tween('custom', tweenFunction);
 
+  joinedShurikens.exit().remove();
   
   d3.select('.collisions').select('span').text(this.collisionCount);
-  joinedshurikens.exit().remove();
+  
 }
 
-Game.prototype.createEnemies = function() {
-  this.createShurikens();
+var tweenFunction = function(shurikenEndData) {
+  var shuriken = d3.select(this);
+  var startPosition = {'x': parseFloat(shuriken.attr('x')), 'y': parseFloat(shuriken.attr('y')) };
+  var endPosition = {'x': shurikenEndData.x, 'y': shurikenEndData.y};
+
+  debugger;
+  return function(t) {
+    var tPosition;
+    tPosition = {
+      'x': startPosition.x + t*(endPosition.x - startPosition.x),
+      'y': startPosition.y + t*(endPosition.y - startPosition.y)
+    };
+    checkCollision(tPosition.x, tPosition.y);
+    updateScore();
+
+    return shuriken.attr('x', tPosition.x).attr('y', tPosition.y);  //Function does not need to return, but explicitly returning for clarity
+  }
 }
 
-Game.prototype.checkCollision = function (dThreeObject) {
-  var dThreePlayer = d3.select('.player');
-
-  var shurikenX = dThreeObject.attr('x') + dThreeObject.attr('width') / 2;
-  var shurikenY = dThreeObject.attr('y') + dThreeObject.attr('width') / 2;
-  var shurikenR = dThreeObject.attr('width') / 2;
-  var playerX = dThreePlayer.attr('cx');
-  var playerY = dThreePlayer.attr('cy');
-  var playerR = dThreePlayer.attr('r');
+var checkCollision = function (shurikenX, shurikenY) {
+  var playerX = parseFloat(player.attr('cx'));
+  var playerY = parseFloat(player.attr('cy'));
+  var playerR = parseFloat(player.attr('r'));
 
   var diffX = playerX - shurikenX;
   var diffY = playerY - shurikenY;
-  var radiusSum = parseFloat(playerR) + parseFloat(shurikenR);
+  var radiusSum = playerR + 50;   //Hardcoded R for shuriken
   var separation = Math.sqrt(diffX*diffX + diffY*diffY);
 
-  if((separation-5) < radiusSum) {
-    this.collisionCount++;
-    this.highScore = Math.max(this.curScore, this.highScore);
-    this.curScore = 0;
+  if(separation < radiusSum) {
+    if (!collidedThisTick)
+      collisionCount++;
+    collidedThisTick = true;
+    highScore = Math.max(curScore, highScore);
+    curScore = 0;
+    console.log('HIT');
     return true;
   }
   else
     return false;
 }
 
-Game.prototype.score = function () {
-  this.curScore += 1;
-  d3.select('.high').select('span').text(this.highScore);
-  d3.select('.current').select('span').text(this.curScore);
-  
+var updateScore = function () {
+  curScore += 1;
+  d3.select('.high').select('span').text(highScore);
+  d3.select('.current').select('span').text(curScore); 
 }
 
-Game.prototype.collisionDetection = function() {
-  var joinedshurikens = this.shurikens.selectAll('.shuriken')[0];
-  for (var i = 0; i < joinedshurikens.length; i++) {
-    this.checkCollision(d3.select(joinedshurikens[i]));
-  }
-}
+runGame();
 
 
-Game.prototype.createShurikens = function() {
-  for (var i = 0; i < this.shurikensCount; i++) {
-    var x = Math.random() * this.displayCanvas.attr('width');
-    var y = Math.random() * this.displayCanvas.attr('height');
-    var n = 30;
-    
-    this.boardState.enemyStates.push({
-      'x' : x,
-      'oldX' : x,
-      'y' : y,
-      'oldY' : y,
-      'n' : n,
-      'id' : i
-    });
-  }
-}
 
-var newGame = new Game();
