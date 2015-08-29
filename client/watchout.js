@@ -4,7 +4,7 @@ var Game = function(){
     'playerState': {},
     'enemyStates': []
   };
-  this.asteroidCount = 15;
+  this.shurikensCount = 30;
   this.displayCanvas = d3.select("body").append("svg")
     .attr('width', 1000)
     .attr('height', 1000);
@@ -12,8 +12,8 @@ var Game = function(){
     .attr('class', 'gameboard')
     .attr('width', '100%')
     .attr('height', '100%')
-    .attr('fill', 'black');
-  this.asteroids = this.displayCanvas.append("g");
+    .attr('fill', 'transparent');
+  this.shurikens = this.displayCanvas.append("g");
   this.player = this.displayCanvas.append("circle")
     .attr('fill', 'yellow')
     .attr('class', 'player');
@@ -35,7 +35,7 @@ Game.prototype.runGame = function() {
   setInterval(function() {
     this.score();
     this.collisionDetection();
-  }.bind(this), 100);
+  }.bind(this), 500);
 }
 
 Game.prototype.createPlayer = function() {
@@ -87,48 +87,55 @@ Game.prototype.clampPosition = function(x,y) {
 }
 
 Game.prototype.renderBoard = function() {
-  var joinedAsteroids = this.asteroids.selectAll('.asteroid')
+  var joinedshurikens = this.shurikens.selectAll('.shuriken')
     .data(this.boardState.enemyStates, function(d, index) {return d.id;}); 
   
-  joinedAsteroids.enter()
-    .append("image")
-    .attr('class', 'asteroid')
+  joinedshurikens.enter()
+    .append("rect")
+    .attr('class', 'shuriken')
     .attr('x', function(d, i) {return d.x})
     .attr('y', function(d, i) {return d.y})
     .attr('height', function(d, i) {return d.n})
     .attr('width', function(d, i) {return d.n})
     .attr('id', function(d,i) {return d.id})
-    .attr('xlink:href', 'asteroid.png');
+    .append('animate')
+    .attr('attributeName', 'transform')
+    .attr('type', 'rotate')
+    .attr('from', '0deg')
+    .attr('to', '360deg.')
+    .attr('dur', '1s')
+    .attr('repeatCount', 'indefinite');
 
-  joinedAsteroids.transition()
-    .duration(1000)
+  joinedshurikens.transition()
+    .delay(1000)
     .attr('x', function(d, i) {return d.x})
     .attr('y', function(d, i) {return d.y});
+
   
   d3.select('.collisions').select('span').text(this.collisionCount);
-  joinedAsteroids.exit().remove();
+  joinedshurikens.exit().remove();
 }
 
 Game.prototype.createEnemies = function() {
-  this.createAsteroids();
+  this.createShurikens();
 }
 
 Game.prototype.checkCollision = function (dThreeObject) {
   var dThreePlayer = d3.select('.player');
 
-  var asteroidX = dThreeObject.attr('x');
-  var asteroidY = dThreeObject.attr('y');
-  var asteroidR = dThreeObject.attr('width');
+  var shurikenX = dThreeObject.attr('x') + dThreeObject.attr('width') / 2;
+  var shurikenY = dThreeObject.attr('y') + dThreeObject.attr('width') / 2;
+  var shurikenR = dThreeObject.attr('width') / 2;
   var playerX = dThreePlayer.attr('cx');
   var playerY = dThreePlayer.attr('cy');
   var playerR = dThreePlayer.attr('r');
 
-  var diffX = playerX - asteroidX;
-  var diffY = playerY - asteroidY;
-  var radiusSum = parseFloat(playerR) + parseFloat(asteroidR) / 2;
+  var diffX = playerX - shurikenX;
+  var diffY = playerY - shurikenY;
+  var radiusSum = parseFloat(playerR) + parseFloat(shurikenR);
   var separation = Math.sqrt(diffX*diffX + diffY*diffY);
 
-  if(separation < radiusSum) {
+  if((separation-5) < radiusSum) {
     this.collisionCount++;
     this.highScore = Math.max(this.curScore, this.highScore);
     this.curScore = 0;
@@ -146,21 +153,24 @@ Game.prototype.score = function () {
 }
 
 Game.prototype.collisionDetection = function() {
-  var joinedAsteroids = this.asteroids.selectAll('.asteroid')[0];
-  for (var i = 0; i < joinedAsteroids.length; i++) {
-    this.checkCollision(d3.select(joinedAsteroids[i]));
+  var joinedshurikens = this.shurikens.selectAll('.shuriken')[0];
+  for (var i = 0; i < joinedshurikens.length; i++) {
+    this.checkCollision(d3.select(joinedshurikens[i]));
   }
 }
 
-Game.prototype.createAsteroids = function() {
-  for(var i = 0; i < this.asteroidCount; i++) {
+
+Game.prototype.createShurikens = function() {
+  for (var i = 0; i < this.shurikensCount; i++) {
     var x = Math.random() * this.displayCanvas.attr('width');
     var y = Math.random() * this.displayCanvas.attr('height');
-    var n = Math.random() * 25 + 25;
+    var n = 30;
     
     this.boardState.enemyStates.push({
       'x' : x,
+      'oldX' : x,
       'y' : y,
+      'oldY' : y,
       'n' : n,
       'id' : i
     });
