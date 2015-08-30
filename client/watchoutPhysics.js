@@ -1,6 +1,6 @@
 var sandboxWidth = 1000;
 var sandboxHeight = 1000;
-var gravityStrength = 0.0;
+var gravityStrength = 0.1;
 var numNodes = 100;
 
 var nodesArray = [];
@@ -14,10 +14,10 @@ for (var i = 0; i < numNodes; i++) {
 
 var force = d3.layout.force()
   .gravity(gravityStrength)
-  .charge(function(d,i) {return i ? -10 : 500;}) 
+  .charge(function(d,i) {return i ? -30 : -1000;}) 
   .nodes(nodesArray)
   .size([sandboxWidth, sandboxHeight])
-  .friction(0.3)
+  .friction(0.8)
   .theta(0.8)
   .alpha(0.1)
   .start();
